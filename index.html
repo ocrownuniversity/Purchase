@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Track inventory purchases month by month. Offline-ready, installable PWA.">
+
+<!-- PWA / Install Meta -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PurchaseLog">
+<meta name="application-name" content="PurchaseLog">
+<meta name="msapplication-TileColor" content="#0a0a0d">
+<meta name="msapplication-TileImage" content="icons/icon-144.png">
+<meta name="theme-color" content="#0a0a0d">
+
+<!-- Icons -->
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+<!-- Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<title>PurchaseLog</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:       #0a0a0d;
+  --bg2:      #0f0f13;
+  --surface:  #141418;
+  --surface2: #1a1a20;
+  --surface3: #202028;
+  --border:   #28282f;
+  --border2:  #32323c;
+  --accent:   #e8ff47;
+  --blue:     #47c8ff;
+  --blue-dim: rgba(71,200,255,0.1);
+  --green:    #47ffb8;
+  --red:      #ff5c5c;
+  --orange:   #ffaa47;
+  --text:     #f0f0f5;
+  --text2:    #a0a0b0;
+  --text3:    #505060;
+  --mono:     'IBM Plex Mono', monospace;
+  --display:  'Syne', sans-serif;
+  --radius:   14px;
+  --safe-t:   env(safe-area-inset-top, 0px);
+  --safe-b:   env(safe-area-inset-bottom, 0px);
+  --safe-l:   env(safe-area-inset-left, 0px);
+  --safe-r:   env(safe-area-inset-right, 0px);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding-top: var(--safe-t);
+  padding-bottom: var(--safe-b);
+  padding-left: var(--safe-l);
+  padding-right: var(--safe-r);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SPLASH ── */
+#splash {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+#splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.splash-icon {
+  width: 88px; height: 88px;
+  background: var(--accent);
+  border-radius: 24px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.4rem;
+  animation: splashPulse 1.4s ease infinite;
+  box-shadow: 0 0 0 0 rgba(232,255,71,0.5);
+}
+@keyframes splashPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(232,255,71,0.4); }
+  50%       { transform: scale(1.04); box-shadow: 0 0 0 18px rgba(232,255,71,0); }
+}
+
+.splash-name {
+  font-family: var(--display);
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+.splash-name em { color: var(--accent); font-style: normal; }
+
+.splash-bar {
+  width: 100px; height: 3px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.splash-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  animation: splashLoad 1.5s ease forwards;
+}
+@keyframes splashLoad { from { width: 0; } to { width: 100%; } }
+
+/* ── BANNERS ── */
+#offlineBanner {
+  position: fixed; top: var(--safe-t); left: 0; right: 0;
+  z-index: 300;
+  background: var(--orange); color: #000;
+  font-family: var(--mono); font-size: 0.68rem; font-weight: 500;
+  text-align: center; padding: 0.4rem 1rem; letter-spacing: 0.06em;
+  transform: translateY(-100%); transition: transform 0.3s ease;
+}
+#offlineBanner.show { transform: translateY(0); }
+
+#installBanner {
+  display: none;
+  background: var(--surface2); border-bottom: 1px solid var(--border);
+  padding: 0.85rem 1.25rem; gap: 1rem; align-items: center; flex-wrap: wrap;
+}
+#installBanner.show { display: flex; }
+
+.inst-icon { width: 42px; height: 42px; background: var(--accent); border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+.inst-copy { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.inst-copy strong { font-family: var(--display); font-size: 0.85rem; font-weight: 700; color: var(--text); }
+.inst-copy span { font-size: 0.62rem; color: var(--text3); }
+.inst-btns { display: flex; gap: 0.5rem; }
+
+#updateBanner {
+  display: none;
+  position: fixed; bottom: calc(1.5rem + var(--safe-b)); left: 50%; transform: translateX(-50%);
+  z-index: 300;
+  background: var(--surface2); border: 1px solid var(--border2); border-top: 2px solid var(--accent);
+  border-radius: 12px; padding: 0.75rem 1.2rem; gap: 1rem; align-items: center;
+  font-size: 0.72rem; color: var(--text2); box-shadow: 0 12px 40px rgba(0,0,0,0.6); white-space: nowrap;
+}
+#updateBanner.show { display: flex; }
+
+/* ── APP SHELL ── */
+#app { display: flex; flex-direction: column; min-height: 100dvh; opacity: 0; transition: opacity 0.4s ease; }
+#app.ready { opacity: 1; }
+
+/* ── TOP BAR ── */
+.topbar {
+  background: rgba(10,10,13,0.92);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1.25rem 0;
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.topbar-row {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem;
+}
+
+.app-mark {
+  width: 34px; height: 34px; background: var(--accent); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;
+}
+.app-title {
+  font-family: var(--display); font-size: 1.2rem; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--text); line-height: 1;
+}
+.app-title em { color: var(--accent); font-style: normal; }
+
+.top-actions { margin-left: auto; display: flex; gap: 0.4rem; }
+
+.iBtn {
+  width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text2); font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.iBtn:hover { border-color: var(--accent); color: var(--accent); }
+.iBtn:active { transform: scale(0.9); }
+
+/* ── YEAR NAV ── */
+.year-nav { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.85rem; }
+
+.yr-btn {
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text3); cursor: pointer; font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.yr-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.yr-label { font-family: var(--display); font-size: 1.05rem; font-weight: 700; color: var(--text); min-width: 52px; text-align: center; }
+
+.yr-count { font-size: 0.6rem; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-left: 0.4rem; }
+
+/* ── MONTH TABS ── */
+.tabs-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin: 0 -1.25rem; padding: 0 1.25rem; }
+.tabs-scroll::-webkit-scrollbar { display: none; }
+
+.tabs { display: flex; gap: 0.15rem; min-width: max-content; }
+
+.mtab {
+  display: flex; flex-direction: column; align-items: center; gap: 0.12rem;
+  padding: 0.5rem 0.85rem 0.6rem; border: none; background: transparent;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.mtab .mn { font-size: 0.63rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); transition: color 0.15s; }
+.mtab .mc { font-size: 0.58rem; color: var(--text3); transition: color 0.15s; }
+.mtab:hover .mn { color: var(--text2); }
+.mtab.active { border-bottom-color: var(--accent); }
+.mtab.active .mn { color: var(--accent); }
+.mtab.active .mc { color: var(--accent); opacity: 0.7; }
+.mtab.has-data .mn { color: var(--text2); }
+.mtab.has-data .mc { color: var(--blue); }
+
+/* ── MAIN ── */
+main { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* ── STATS ── */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.65rem; }
+
+.scard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.9rem 1rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+  position: relative; overflow: hidden;
+}
+.scard::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--accent);
+}
+.scard:nth-child(2)::after { background: var(--blue); }
+.scard:nth-child(3)::after { background: var(--green); }
+.scard:nth-child(4)::after { background: var(--orange); }
+
+.slabel { font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+.sval { font-family: var(--display); font-size: 1.3rem; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; line-height: 1.1; }
+.scard:nth-child(2) .sval { color: var(--blue); }
+.scard:nth-child(3) .sval { color: var(--green); }
+.scard:nth-child(4) .sval { color: var(--orange); }
+
+/* ── PANEL ── */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+.phead {
+  padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.65rem;
+  cursor: pointer; user-select: none; transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.phead:hover { background: var(--surface2); }
+.pdot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.plabel { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+.ptoggle { margin-left: auto; color: var(--text3); font-size: 1.1rem; transition: transform 0.3s; line-height: 1; }
+.ptoggle.open { transform: rotate(45deg); }
+
+.pbody { display: none; padding: 1.1rem; }
+.pbody.open { display: block; }
+
+/* ── FORM ── */
+.fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 0.8rem; }
+.field { display: flex; flex-direction: column; gap: 0.32rem; }
+.field.wide { grid-column: span 2; }
+
+label { font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); }
+label .req { color: var(--accent); }
+
+input, select {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; color: var(--text); font-family: var(--mono); font-size: 0.8rem;
+  padding: 0.6rem 0.8rem; width: 100%; outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none; min-height: 44px;
+}
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232,255,71,0.07); }
+input[readonly] { color: var(--blue); background: var(--blue-dim); border-color: rgba(71,200,255,0.18); cursor: default; }
+select option { background: var(--surface2); }
+
+.chint { font-size: 0.57rem; color: var(--blue); letter-spacing: 0.04em; opacity: 0.8; }
+
+.fact { margin-top: 1rem; display: flex; gap: 0.55rem; flex-wrap: wrap; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: var(--display); font-size: 0.76rem; font-weight: 700;
+  letter-spacing: 0.02em; padding: 0.62rem 1.25rem; border-radius: 9px;
+  border: none; cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  min-height: 44px; -webkit-tap-highlight-color: transparent;
+}
+.btn-p { background: var(--accent); color: #0a0a0d; }
+.btn-p:hover { background: #f5ff70; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(232,255,71,0.22); }
+.btn-p:active { transform: translateY(0); }
+
+.btn-g { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-g:hover { border-color: var(--border2); color: var(--text); }
+
+.btn-ob { background: transparent; color: var(--blue); border: 1px solid rgba(71,200,255,0.4); }
+.btn-ob:hover { background: var(--blue-dim); }
+
+.btn-sm { padding: 0.36rem 0.7rem; font-size: 0.66rem; min-height: 32px; border-radius: 7px; }
+
+.btn-edit { background: rgba(255,170,71,0.1); color: var(--orange); border: 1px solid rgba(255,170,71,0.22); }
+.btn-edit:hover { background: rgba(255,170,71,0.18); }
+
+.btn-del { background: rgba(255,92,92,0.08); color: var(--red); border: 1px solid rgba(255,92,92,0.18); }
+.btn-del:hover { background: rgba(255,92,92,0.16); }
+
+.btn-inst { background: var(--accent); color: #0a0a0d; padding: 0.48rem 1rem; min-height: 38px; font-size: 0.73rem; }
+.btn-dism { background: transparent; color: var(--text3); border: 1px solid var(--border); padding: 0.48rem 0.75rem; min-height: 38px; font-size: 0.73rem; }
+
+/* ── CONTROLS ── */
+.controls { display: flex; gap: 0.65rem; flex-wrap: wrap; align-items: center; }
+.swrap { position: relative; flex: 1; min-width: 160px; }
+.spfx { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 0.8rem; pointer-events: none; }
+#searchInput { padding-left: 2.1rem; }
+.sgrp { display: flex; gap: 0.45rem; align-items: center; }
+.slbl { font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); white-space: nowrap; }
+
+/* ── TABLE ── */
+.twrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+.twrap::-webkit-scrollbar { height: 4px; }
+.twrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+table { width: 100%; border-collapse: collapse; min-width: 860px; }
+thead { background: var(--surface2); }
+th { font-size: 0.57rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); padding: 0.75rem 0.85rem; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); font-weight: 600; }
+th.r { text-align: right; }
+
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+
+td { font-size: 0.73rem; padding: 0.75rem 0.85rem; color: var(--text2); vertical-align: middle; }
+td.r { text-align: right; color: var(--blue); font-weight: 500; }
+td.gtd { text-align: right; color: var(--accent); font-weight: 600; font-size: 0.8rem; }
+td.dtd { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+td.itd { color: var(--text3); font-size: 0.62rem; }
+
+.badge { display: inline-block; padding: 0.16rem 0.48rem; border-radius: 5px; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.04em; }
+.b-air { background: rgba(71,200,255,0.13); color: var(--blue); }
+.b-sea { background: rgba(71,255,184,0.1); color: var(--green); }
+.b-bus { background: rgba(255,170,71,0.1); color: var(--orange); }
+.b-log { background: rgba(180,71,255,0.1); color: #b447ff; }
+
+.hi  { color: var(--red) !important; }
+.wn  { color: var(--orange) !important; }
+
+.acell { white-space: nowrap; display: flex; gap: 0.3rem; }
+
+tfoot tr td { background: var(--surface2); border-top: 2px solid var(--border2); font-size: 0.68rem; color: var(--text3); font-weight: 600; padding: 0.8rem 0.85rem; }
+tfoot .r { color: var(--blue); }
+tfoot .gtd { color: var(--accent); font-size: 0.78rem; }
+
+/* ── EMPTY ── */
+.empty { padding: 3.5rem 1.5rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.55rem; }
+.eico { font-size: 2rem; opacity: 0.2; }
+.etit { font-family: var(--display); font-size: 0.9rem; font-weight: 700; color: var(--text3); }
+.esub { font-size: 0.68rem; color: var(--text3); opacity: 0.55; }
+
+/* ── TOAST ── */
+#toast { position: fixed; bottom: calc(1.5rem + var(--safe-b)); right: 1.25rem; background: var(--surface2); border: 1px solid var(--border2); border-left: 3px solid var(--accent); border-radius: 10px; padding: 0.72rem 1rem; font-size: 0.73rem; color: var(--text); z-index: 500; opacity: 0; transform: translateY(8px); transition: all 0.22s ease; pointer-events: none; max-width: 250px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+#toast.show { opacity: 1; transform: translateY(0); }
+
+/* ── MODAL ── */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 200; display: none; align-items: flex-end; justify-content: center; padding: 1rem; padding-bottom: calc(1rem + var(--safe-b)); }
+.overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 20px; padding: 1.5rem; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 0.8rem; animation: slideUp 0.2s ease; }
+@keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.mtitle { font-family: var(--display); font-size: 1rem; font-weight: 800; color: var(--text); }
+.msub { font-size: 0.73rem; color: var(--text3); line-height: 1.6; }
+.mact { display: flex; gap: 0.55rem; margin-top: 0.25rem; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 640px) {
+  main { padding: 0.9rem; gap: 0.9rem; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .fgrid { grid-template-columns: 1fr 1fr; }
+  .field.wide { grid-column: span 2; }
+  .topbar { padding: 0.8rem 1rem 0; }
+}
+@media (max-width: 380px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .fgrid { grid-template-columns: 1fr; }
+  .field.wide { grid-column: span 1; }
+  .fact { flex-direction: column; }
+  .fact .btn { width: 100%; justify-content: center; }
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.panel { animation: fadeUp 0.28s ease both; }
+.stats { animation: fadeUp 0.22s ease both; }
+tbody tr { animation: fadeUp 0.14s ease both; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-icon">📦</div>
+  <div class="splash-name">Purchase<em>Log</em></div>
+  <div class="splash-bar"><div class="splash-fill"></div></div>
+</div>
+
+<!-- OFFLINE -->
+<div id="offlineBanner">⚡ Offline — data fully accessible</div>
+
+<!-- INSTALL BANNER -->
+<div id="installBanner">
+  <div style="display:flex;align-items:center;gap:0.75rem;flex:1;min-width:0;">
+    <div class="inst-icon">📦</div>
+    <div class="inst-copy">
+      <strong>Install PurchaseLog</strong>
+      <span>Offline · Standalone · Fast launch</span>
+    </div>
+  </div>
+  <div class="inst-btns">
+    <button class="btn btn-inst" onclick="installApp()">Install</button>
+    <button class="btn btn-dism" onclick="dismissInstall()">✕</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="app-mark">📦</div>
+      <div class="app-title">Purchase<em>Log</em></div>
+      <div class="top-actions">
+        <button class="iBtn" onclick="exportCSV()" title="Export CSV">↓</button>
+        <button class="iBtn" id="installBtn" onclick="installApp()" title="Install App" style="display:none; background:var(--accent); color:#0a0a0d; border-color:var(--accent); font-size:0.7rem; font-weight:700; width:auto; padding:0 0.75rem; gap:0.3rem;">⬇ Install</button>
+        <button class="iBtn" id="addBtn" onclick="toggleForm()" title="Add record">＋</button>
+      </div>
+    </div>
+
+    <div class="year-nav">
+      <button class="yr-btn" onclick="changeYear(-1)">‹</button>
+      <div class="yr-label" id="yrLabel">2026</div>
+      <button class="yr-btn" onclick="changeYear(1)">›</button>
+      <span class="yr-count" id="yrCount"></span>
+    </div>
+
+    <div class="tabs-scroll">
+      <div class="tabs" id="tabs"></div>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- STATS ROW -->
+    <div class="stats">
+      <div class="scard"><div class="slabel">Records</div><div class="sval" id="sCount">0</div></div>
+      <div class="scard"><div class="slabel">Grand Total</div><div class="sval" id="sTotal">0.00</div></div>
+      <div class="scard"><div class="slabel">Avg / Record</div><div class="sval" id="sAvg">0.00</div></div>
+      <div class="scard"><div class="slabel">Shipping</div><div class="sval" id="sShip">0.00</div></div>
+    </div>
+
+    <!-- FORM PANEL -->
+    <div class="panel" id="formPanel" style="display:none;">
+      <div class="phead" onclick="toggleFormBody()">
+        <div class="pdot"></div>
+        <span class="plabel" id="formLabel">Add Record</span>
+        <span class="ptoggle open" id="formToggle">+</span>
+      </div>
+      <div class="pbody open" id="formBody">
+        <div class="fgrid">
+
+          <div class="field">
+            <label>Date <span class="req">*</span></label>
+            <input type="date" id="fDate">
+          </div>
+
+          <div class="field wide">
+            <label>Item Description <span class="req">*</span></label>
+            <input type="text" id="fDesc" placeholder="e.g. Laptop Stand × Black" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label>Quantity <span class="req">*</span></label>
+            <input type="number" id="fQty" min="0" step="1" placeholder="0" inputmode="numeric" oninput="recalc()">
+          </div>
+
+          <div class="field">
+            <label>Exchange Rate <span class="req">*</span></label>
+            <input type="number" id="fExRate" min="0" step="0.0001" placeholder="1.0000" inputmode="decimal" oninput="recalc()">
+          </div>
+
+          <div class="field">
+            <label>Unit Price (Foreign) <span class="req">*</span></label>
+            <input type="number" id="fUPF" min="0" step="0.01" placeholder="0.00" inputmode="decimal" oninput="recalc()">
+          </div>
+
+          <div class="field">
+            <label>Unit Price (Local)</label>
+            <input type="number" id="fUPL" readonly placeholder="Auto">
+            <span class="chint">⟵ Foreign × Rate</span>
+          </div>
+
+          <div class="field">
+            <label>Subtotal</label>
+            <input type="number" id="fSub" readonly placeholder="Auto">
+            <span class="chint">⟵ Qty × Unit Local</span>
+          </div>
+
+          <div class="field">
+            <label>Shipping Cost</label>
+            <input type="number" id="fShip" min="0" step="0.01" placeholder="0.00" inputmode="decimal" oninput="recalc()">
+          </div>
+
+          <div class="field">
+            <label>Misc Cost</label>
+            <input type="number" id="fMisc" min="0" step="0.01" placeholder="0.00" inputmode="decimal" oninput="recalc()">
+          </div>
+
+          <div class="field">
+            <label>Grand Total</label>
+            <input type="number" id="fGrand" readonly placeholder="Auto">
+            <span class="chint">⟵ Sub + Ship + Misc</span>
+          </div>
+
+          <div class="field">
+            <label>Date of Arrival</label>
+            <input type="date" id="fArr">
+          </div>
+
+          <div class="field">
+            <label>Shipping Method</label>
+            <select id="fMethod">
+              <option value="">— Select —</option>
+              <option value="Air">✈ Air</option>
+              <option value="Sea">🚢 Sea</option>
+              <option value="Bus">🚌 Bus</option>
+              <option value="Logistics">📦 Logistics</option>
+            </select>
+          </div>
+
+        </div>
+        <div class="fact">
+          <button class="btn btn-p" onclick="saveRecord()"><span id="saveLbl">＋ Add Record</span></button>
+          <button class="btn btn-g" onclick="cancelForm()">✕ Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEARCH & SORT -->
+    <div class="panel">
+      <div class="pbody open" style="padding:0.85rem 1rem;">
+        <div class="controls">
+          <div class="swrap">
+            <span class="spfx">⌕</span>
+            <input type="search" id="searchInput" placeholder="Search description or date…" oninput="render()">
+          </div>
+          <div class="sgrp">
+            <span class="slbl">Sort</span>
+            <select id="sortSel" onchange="render()">
+              <option value="date-desc">Date ↓</option>
+              <option value="date-asc">Date ↑</option>
+              <option value="grand-desc">Total ↓</option>
+              <option value="grand-asc">Total ↑</option>
+              <option value="az">A → Z</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECORDS TABLE -->
+    <div class="panel">
+      <div class="phead" style="cursor:default;">
+        <div class="pdot" style="background:var(--blue)"></div>
+        <span class="plabel" id="tHead">Records — Jan 2026</span>
+        <span style="margin-left:auto;font-size:0.62rem;color:var(--text3);" id="recCount">0 entries</span>
+      </div>
+      <div class="pbody open" style="padding:0;">
+        <div class="twrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Date</th><th>Description</th>
+                <th class="r">Qty</th><th class="r">Ex.Rate</th>
+                <th class="r">UP Foreign</th><th class="r">UP Local</th>
+                <th class="r">Subtotal</th><th class="r">Shipping</th>
+                <th class="r">Misc</th><th class="r">Grand Total</th>
+                <th>Arrival</th><th>Method</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tBody"></tbody>
+            <tfoot id="tFoot"></tfoot>
+          </table>
+          <div id="emptyState" class="empty" style="display:none;">
+            <div class="eico">📋</div>
+            <div class="etit" id="eTitle">No records this month</div>
+            <div class="esub">Tap ＋ above to add a purchase</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="overlay" id="delOverlay">
+  <div class="modal">
+    <div class="mtitle">Delete Record?</div>
+    <div class="msub">This cannot be undone. The record will be permanently removed.</div>
+    <div class="mact">
+      <button class="btn btn-del" onclick="confirmDel()">Delete</button>
+      <button class="btn btn-g"   onclick="closeMod()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANUAL INSTALL INSTRUCTIONS MODAL -->
+<div class="overlay" id="noPromptOverlay">
+  <div class="modal">
+    <div class="mtitle">Install PurchaseLog</div>
+    <div class="msub" style="line-height:1.9;">
+      Chrome hasn't offered the install prompt yet. Here's how to install manually:<br><br>
+      <span style="color:var(--accent);font-weight:600;">Android Chrome:</span><br>
+      1. Tap the <strong style="color:var(--text);">⋮ three-dot menu</strong> (top right)<br>
+      2. Tap <strong style="color:var(--text);">"Add to Home screen"</strong> or <strong style="color:var(--text);">"Install app"</strong><br>
+      3. Tap <strong style="color:var(--text);">Install</strong> to confirm<br><br>
+      <span style="color:var(--text3);font-size:0.65rem;">If you don't see this option, try: clear browser cache, visit the site once, wait 30 seconds, then check again.</span>
+    </div>
+    <div class="mact">
+      <button class="btn btn-p" onclick="$('noPromptOverlay').classList.remove('open')">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE BANNER -->
+<div id="updateBanner">
+  <span>🔄 Update available</span>
+  <button class="btn btn-p btn-sm" onclick="applyUpdate()">Update now</button>
+  <button class="btn btn-g btn-sm" onclick="$('updateBanner').classList.remove('show')" style="min-height:32px;padding:0.36rem 0.6rem;">✕</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+const STORE = 'purchaselog_v2';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MFULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+let db = loadDB();
+let curYear  = new Date().getFullYear();
+let curMonth = new Date().getMonth();
+let editId   = null;
+let delId    = null;
+let prompt   = null;
+let newSW    = null;
+
+// ══════════════════════════════════════════
+//  DB
+// ══════════════════════════════════════════
+function loadDB() {
+  try {
+    const r = localStorage.getItem(STORE);
+    if (r) return JSON.parse(r);
+    // Migrate old format
+    const old = localStorage.getItem('purchaselog_records');
+    if (old) {
+      const arr = JSON.parse(old);
+      const m = {};
+      arr.forEach(r => { const k = r.date ? r.date.slice(0,7) : '2026-01'; if (!m[k]) m[k]=[]; m[k].push(r); });
+      localStorage.setItem(STORE, JSON.stringify(m));
+      return m;
+    }
+  } catch(e) {}
+  return {};
+}
+
+function saveDB() { localStorage.setItem(STORE, JSON.stringify(db)); }
+
+function mkey(y, m) { return `${y}-${String(m+1).padStart(2,'0')}`; }
+function getRecs(y, m) { return db[mkey(y,m)] || []; }
+function setRecs(y, m, arr) {
+  const k = mkey(y,m);
+  if (arr.length === 0) { delete db[k]; } else { db[k] = arr; }
+  saveDB();
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const fmt = (n, d=2) => (+n||0).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+function toast(msg, type='ok') {
+  const el = $('toast');
+  el.textContent = msg;
+  el.style.borderLeftColor = type==='err'?'var(--red)':type==='warn'?'var(--orange)':'var(--accent)';
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ══════════════════════════════════════════
+//  SERVICE WORKER
+// ══════════════════════════════════════════
+(function() {
+  if (!('serviceWorker' in navigator)) return;
+  try { if (window.self !== window.top) return; } catch(e) { return; }
+  if (location.protocol === 'file:') return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        reg.addEventListener('updatefound', () => {
+          newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller)
+              $('updateBanner').classList.add('show');
+          });
+        });
+      }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+  });
+})();
+
+function applyUpdate() {
+  if (newSW) newSW.postMessage({ type: 'SKIP_WAITING' });
+  $('updateBanner').classList.remove('show');
+}
+
+// ══════════════════════════════════════════
+//  INSTALL
+// ══════════════════════════════════════════
+
+// Clear any old dismiss flag so the button can appear
+localStorage.removeItem('instDismissed');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  prompt = e;
+
+  // Show BOTH the header button and the banner
+  const btn = $('installBtn');
+  if (btn) btn.style.display = 'flex';
+  $('installBanner').classList.add('show');
+
+  console.log('[PWA] Install prompt ready ✓');
+});
+
+window.addEventListener('appinstalled', () => {
+  $('installBanner').classList.remove('show');
+  const btn = $('installBtn');
+  if (btn) btn.style.display = 'none';
+  prompt = null;
+  toast('✓ PurchaseLog installed successfully!');
+});
+
+function installApp() {
+  if (!prompt) {
+    // Prompt not fired yet — show instructions modal
+    $('noPromptOverlay').classList.add('open');
+    return;
+  }
+  prompt.prompt();
+  prompt.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') {
+      toast('Installing…');
+    } else {
+      toast('Installation cancelled.');
+    }
+    prompt = null;
+    $('installBanner').classList.remove('show');
+    const btn = $('installBtn');
+    if (btn) btn.style.display = 'none';
+  });
+}
+
+function dismissInstall() {
+  $('installBanner').classList.remove('show');
+  // Don't permanently store — keep install button visible in header
+}
+
+// ══════════════════════════════════════════
+//  ONLINE / OFFLINE
+// ══════════════════════════════════════════
+function chkOnline() { $('offlineBanner').classList.toggle('show', !navigator.onLine); }
+window.addEventListener('online',  () => { chkOnline(); toast('Back online.'); });
+window.addEventListener('offline', () => { chkOnline(); toast('Offline — data saved.','warn'); });
+
+// ══════════════════════════════════════════
+//  NAV
+// ══════════════════════════════════════════
+function changeYear(d) { curYear += d; renderTabs(); renderAll(); }
+
+function selectMonth(m) {
+  curMonth = m;
+  renderTabs();
+  renderAll();
+  setTimeout(() => {
+    const t = document.querySelector('.mtab.active');
+    if (t) t.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
+  }, 50);
+}
+
+function renderTabs() {
+  $('yrLabel').textContent = curYear;
+  const tot = MONTHS.reduce((a,_,i) => a + getRecs(curYear,i).length, 0);
+  $('yrCount').textContent = tot ? `${tot} records` : '';
+
+  $('tabs').innerHTML = MONTHS.map((n,i) => {
+    const r = getRecs(curYear, i);
+    const active = i === curMonth;
+    const has = r.length > 0;
+    return `<button class="mtab ${active?'active':''} ${has?'has-data':''}" onclick="selectMonth(${i})">
+      <span class="mn">${n}</span>
+      <span class="mc">${has ? r.length : '—'}</span>
+    </button>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  FORM
+// ══════════════════════════════════════════
+function toggleForm() {
+  const visible = $('formPanel').style.display !== 'none';
+  if (visible) { cancelForm(); }
+  else {
+    $('formPanel').style.display = '';
+    $('formBody').classList.add('open');
+    $('formToggle').classList.add('open');
+    $('addBtn').textContent = '✕';
+    // Default date = today if in current month, else 1st of month
+    const now = new Date();
+    $('fDate').value = (now.getFullYear()===curYear && now.getMonth()===curMonth)
+      ? now.toISOString().slice(0,10)
+      : `${curYear}-${String(curMonth+1).padStart(2,'0')}-01`;
+    setTimeout(() => $('fDesc').focus(), 80);
+  }
+}
+
+function toggleFormBody() {
+  $('formBody').classList.toggle('open');
+  $('formToggle').classList.toggle('open', $('formBody').classList.contains('open'));
+}
+
+function cancelForm() {
+  editId = null;
+  $('formPanel').style.display = 'none';
+  $('saveLbl').textContent = '＋ Add Record';
+  $('formLabel').textContent = 'Add Record';
+  $('addBtn').textContent = '＋';
+  clearForm();
+}
+
+function clearForm() {
+  ['fDate','fDesc','fQty','fExRate','fUPF','fUPL','fSub','fShip','fMisc','fGrand','fArr'].forEach(id => $(id).value = '');
+  $('fMethod').value = '';
+}
+
+function recalc() {
+  const q = +$('fQty').value||0, ex = +$('fExRate').value||0, uf = +$('fUPF').value||0;
+  const sh = +$('fShip').value||0, mi = +$('fMisc').value||0;
+  const ul = uf*ex, sub = q*ul, grand = sub+sh+mi;
+  $('fUPL').value   = ul    ? ul.toFixed(4)    : '';
+  $('fSub').value   = sub   ? sub.toFixed(2)   : '';
+  $('fGrand').value = grand ? grand.toFixed(2) : '';
+}
+
+function saveRecord() {
+  const date = $('fDate').value, desc = $('fDesc').value.trim();
+  const qty  = +$('fQty').value, exRate = +$('fExRate').value;
+  const upF  = +$('fUPF').value, ship = +$('fShip').value||0, misc = +$('fMisc').value||0;
+  const arr  = $('fArr').value, method = $('fMethod').value;
+
+  if (!date)            { toast('Date is required.','err'); return; }
+  if (!desc)            { toast('Description is required.','err'); return; }
+  if (!qty || qty <= 0) { toast('Quantity must be > 0.','err'); return; }
+  if (!exRate||exRate<=0){ toast('Exchange rate must be > 0.','err'); return; }
+
+  const upL = upF*exRate, sub = qty*upL, grand = sub+ship+misc;
+  const rec = { date, desc, qty, exRate, upF, upL, sub, ship, misc, grand, arr, method };
+
+  // Determine target month from date
+  const dObj = new Date(date + 'T00:00:00');
+  const ty = dObj.getFullYear(), tm = dObj.getMonth();
+
+  if (editId) {
+    // Remove from old location
+    Object.keys(db).forEach(k => {
+      db[k] = db[k].filter(r => r.id !== editId);
+      if (!db[k].length) delete db[k];
+    });
+    rec.id = editId; editId = null;
+    toast('Record updated.');
+  } else {
+    rec.id = uid();
+    toast('Record added.');
+  }
+
+  const k = mkey(ty, tm);
+  if (!db[k]) db[k] = [];
+  db[k].push(rec);
+  db[k].sort((a,b) => b.date.localeCompare(a.date));
+  saveDB();
+
+  // Navigate to that month
+  curYear = ty; curMonth = tm;
+  cancelForm();
+  renderTabs();
+  renderAll();
+}
+
+// ══════════════════════════════════════════
+//  EDIT / DELETE
+// ══════════════════════════════════════════
+function editRec(id) {
+  let rec = null;
+  Object.values(db).forEach(arr => { const f = arr.find(r => r.id===id); if(f) rec=f; });
+  if (!rec) return;
+  editId = id;
+
+  $('fDate').value   = rec.date;
+  $('fDesc').value   = rec.desc;
+  $('fQty').value    = rec.qty;
+  $('fExRate').value = rec.exRate;
+  $('fUPF').value    = rec.upF;
+  $('fShip').value   = rec.ship;
+  $('fMisc').value   = rec.misc;
+  $('fArr').value    = rec.arr;
+  $('fMethod').value = rec.method;
+  recalc();
+
+  $('saveLbl').textContent  = '✓ Save Changes';
+  $('formLabel').textContent = 'Edit Record';
+  $('addBtn').textContent    = '✕';
+  $('formPanel').style.display = '';
+  $('formBody').classList.add('open');
+  $('formToggle').classList.add('open');
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function askDel(id) { delId = id; $('delOverlay').classList.add('open'); }
+
+function confirmDel() {
+  Object.keys(db).forEach(k => {
+    db[k] = db[k].filter(r => r.id !== delId);
+    if (!db[k].length) delete db[k];
+  });
+  saveDB(); delId = null;
+  closeMod(); renderTabs(); renderAll();
+  toast('Record deleted.');
+}
+
+function closeMod() { $('delOverlay').classList.remove('open'); delId = null; }
+$('delOverlay').addEventListener('click', e => { if (e.target===$('delOverlay')) closeMod(); });
+$('noPromptOverlay').addEventListener('click', e => { if (e.target===$('noPromptOverlay')) $('noPromptOverlay').classList.remove('open'); });
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function getFiltered() {
+  const q = $('searchInput').value.toLowerCase().trim();
+  let list = [...getRecs(curYear, curMonth)];
+  if (q) list = list.filter(r => r.desc.toLowerCase().includes(q) || r.date.includes(q));
+  const s = $('sortSel').value;
+  if (s==='date-desc')  list.sort((a,b)=>b.date.localeCompare(a.date));
+  if (s==='date-asc')   list.sort((a,b)=>a.date.localeCompare(b.date));
+  if (s==='grand-desc') list.sort((a,b)=>b.grand-a.grand);
+  if (s==='grand-asc')  list.sort((a,b)=>a.grand-b.grand);
+  if (s==='az')         list.sort((a,b)=>a.desc.localeCompare(b.desc));
+  return list;
+}
+
+function costCls(v, all) {
+  if (!all.length) return '';
+  const max = Math.max(...all), avg = all.reduce((a,b)=>a+b,0)/all.length;
+  if (v >= max*0.8) return 'hi';
+  if (v >= avg*1.5) return 'wn';
+  return '';
+}
+
+function badge(m) {
+  const map={Air:'b-air',Sea:'b-sea',Bus:'b-bus',Logistics:'b-log'};
+  return m ? `<span class="badge ${map[m]||''}">${m}</span>` : '—';
+}
+
+function render() {
+  const list  = getFiltered();
+  const label = `${MFULL[curMonth]} ${curYear}`;
+  $('tHead').textContent  = `Records — ${label}`;
+  $('recCount').textContent = `${list.length} entr${list.length===1?'y':'ies'}`;
+
+  if (!list.length) {
+    $('tBody').innerHTML = '';
+    $('tFoot').innerHTML = '';
+    $('emptyState').style.display = 'flex';
+    $('eTitle').textContent = $('searchInput').value.trim()
+      ? 'No matching records'
+      : `No records for ${MONTHS[curMonth]} ${curYear}`;
+    return;
+  }
+
+  $('emptyState').style.display = 'none';
+  const gv = list.map(r=>r.grand);
+
+  $('tBody').innerHTML = list.map((r,i) => `
+  <tr>
+    <td class="itd">${i+1}</td>
+    <td>${r.date}</td>
+    <td class="dtd" title="${r.desc.replace(/"/g,'&quot;')}">${r.desc}</td>
+    <td class="r">${fmt(r.qty,0)}</td>
+    <td class="r">${fmt(r.exRate,4)}</td>
+    <td class="r">${fmt(r.upF,2)}</td>
+    <td class="r">${fmt(r.upL,2)}</td>
+    <td class="r">${fmt(r.sub,2)}</td>
+    <td class="r">${fmt(r.ship,2)}</td>
+    <td class="r">${fmt(r.misc,2)}</td>
+    <td class="gtd ${costCls(r.grand,gv)}">${fmt(r.grand,2)}</td>
+    <td>${r.arr||'—'}</td>
+    <td>${badge(r.method)}</td>
+    <td><div class="acell">
+      <button class="btn btn-sm btn-edit" onclick="editRec('${r.id}')">Edit</button>
+      <button class="btn btn-sm btn-del"  onclick="askDel('${r.id}')">Del</button>
+    </div></td>
+  </tr>`).join('');
+
+  const tS=list.reduce((a,r)=>a+r.sub,0), tSh=list.reduce((a,r)=>a+r.ship,0);
+  const tM=list.reduce((a,r)=>a+r.misc,0), tG=list.reduce((a,r)=>a+r.grand,0);
+
+  $('tFoot').innerHTML = `<tr>
+    <td colspan="7" style="letter-spacing:.08em">TOTALS</td>
+    <td class="r">${fmt(tS)}</td><td class="r">${fmt(tSh)}</td>
+    <td class="r">${fmt(tM)}</td><td class="gtd">${fmt(tG)}</td>
+    <td colspan="3"></td>
+  </tr>`;
+}
+
+function renderStats() {
+  const list = getRecs(curYear, curMonth);
+  const tot  = list.reduce((a,r)=>a+r.grand,0);
+  const ship = list.reduce((a,r)=>a+r.ship,0);
+  $('sCount').textContent = list.length;
+  $('sTotal').textContent = fmt(tot);
+  $('sAvg').textContent   = list.length ? fmt(tot/list.length) : '0.00';
+  $('sShip').textContent  = fmt(ship);
+}
+
+function renderAll() { renderStats(); render(); }
+
+// ══════════════════════════════════════════
+//  EXPORT
+// ══════════════════════════════════════════
+function exportCSV() {
+  const list = getFiltered();
+  if (!list.length) { toast('No records to export.','err'); return; }
+  const h = ['Date','Description','Qty','Ex Rate','UP Foreign','UP Local','Subtotal','Shipping','Misc','Grand Total','Arrival','Method'];
+  const rows = list.map(r => [
+    r.date, `"${r.desc.replace(/"/g,'""')}"`, r.qty, r.exRate,
+    r.upF, (+r.upL).toFixed(2), r.sub.toFixed(2),
+    r.ship.toFixed(2), r.misc.toFixed(2), r.grand.toFixed(2),
+    r.arr, r.method
+  ].join(','));
+  const csv  = [h.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `purchaselog_${MONTHS[curMonth].toLowerCase()}_${curYear}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${list.length} records.`);
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+chkOnline();
+renderTabs();
+renderAll();
+
+setTimeout(() => {
+  $('splash').classList.add('hidden');
+  $('app').classList.add('ready');
+}, 1700);
+
+setTimeout(() => {
+  const t = document.querySelector('.mtab.active');
+  if (t) t.scrollIntoView({ behavior:'instant', block:'nearest', inline:'center' });
+}, 1800);
+
+// PWA install checker — if prompt never fired after 4s, show install button
+// pointing to manual instructions
+setTimeout(() => {
+  // Check if already installed (standalone mode)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+
+  if (isStandalone) {
+    // Running as installed app — hide install button
+    const btn = $('installBtn');
+    if (btn) btn.style.display = 'none';
+    $('installBanner').classList.remove('show');
+    return;
+  }
+
+  // Not installed and prompt never fired — show manual install button
+  if (!prompt) {
+    const btn = $('installBtn');
+    if (btn) {
+      btn.style.display = 'flex';
+      btn.title = 'How to install';
+    }
+  }
+}, 4000);
+</script>
+</body>
+</html>
