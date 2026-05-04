@@ -31,14 +31,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const fsdb = getFirestore(app);
-window._fsdb = fsdb;
-window._fsColl = (path) => collection(fsdb, path);
-window._fsDoc  = (path, id) => doc(fsdb, path, id);
-window._fsSet  = setDoc;
-window._fsDel  = deleteDoc;
-window._fsQuery = query;
-window._fsOrderBy = orderBy;
-window._fsSnap = onSnapshot;
+window._fsdb       = fsdb;
+window._fsColl     = (collPath) => collection(fsdb, collPath);
+window._fsDoc      = (collPath, docId) => doc(fsdb, collPath, docId);
+window._fsSet      = setDoc;
+window._fsDel      = deleteDoc;
+window._fsQuery    = query;
+window._fsOrderBy  = orderBy;
+window._fsSnap     = onSnapshot;
 window._firebaseReady = true;
 window.dispatchEvent(new Event('firebaseReady'));
 </script>
@@ -776,16 +776,17 @@ function initFirebase() {
     window.addEventListener('firebaseReady', initFirebase, { once: true });
     return;
   }
+  // Don't re-subscribe if already listening
+  if (unsubscribe) return;
   fbReady = true;
   setSyncDot('syncing');
 
   // Listen to ALL records in real-time
-  const col = window._fsColl(window._fsdb, 'records');
+  const col = window._fsColl('records');
   const q   = window._fsQuery(col, window._fsOrderBy('date', 'desc'));
 
   unsubscribe = window._fsSnap(q,
     (snapshot) => {
-      // Rebuild local db from Firestore snapshot
       db = {};
       snapshot.forEach(docSnap => {
         const r = { id: docSnap.id, ...docSnap.data() };
@@ -793,7 +794,6 @@ function initFirebase() {
         if (!db[k]) db[k] = [];
         db[k].push(r);
       });
-      // Also save to localStorage as offline cache
       localStorage.setItem(STORE, JSON.stringify(db));
       setSyncDot('synced');
       renderTabs();
@@ -802,37 +802,38 @@ function initFirebase() {
     (error) => {
       console.error('Firestore error:', error);
       setSyncDot('error');
-      toast('Firebase sync error — using local data.', 'warn');
-      // Fall back to localStorage
+      toast('Firebase sync error — check Firestore rules.', 'warn');
       loadLocalDB();
     }
   );
 }
 
 async function fsWrite(rec) {
-  if (!fbReady) return;
+  if (!fbReady) { toast('Firebase not ready yet.','warn'); return; }
   setSyncDot('syncing');
   try {
-    const docRef = window._fsDoc(window._fsdb, 'records', rec.id);
+    const docRef = window._fsDoc('records', rec.id);
     await window._fsSet(docRef, rec);
     setSyncDot('synced');
   } catch(e) {
     setSyncDot('error');
-    toast('Save failed — check connection.', 'err');
+    toast('Save failed — check Firestore rules.', 'err');
+    console.error('fsWrite error:', e);
     throw e;
   }
 }
 
 async function fsDelete(id) {
-  if (!fbReady) return;
+  if (!fbReady) { toast('Firebase not ready yet.','warn'); return; }
   setSyncDot('syncing');
   try {
-    const docRef = window._fsDoc(window._fsdb, 'records', id);
+    const docRef = window._fsDoc('records', id);
     await window._fsDel(docRef);
     setSyncDot('synced');
   } catch(e) {
     setSyncDot('error');
-    toast('Delete failed — check connection.', 'err');
+    toast('Delete failed — check Firestore rules.', 'err');
+    console.error('fsDelete error:', e);
     throw e;
   }
 }
