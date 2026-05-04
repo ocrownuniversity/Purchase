@@ -160,7 +160,7 @@ body{
 #installBanner.show{display:flex}
 
 /* ── APP ── */
-#app{display:flex;flex-direction:column;min-height:100dvh;opacity:0;transition:opacity .4s}
+#app{display:none;flex-direction:column;min-height:100dvh;opacity:0;transition:opacity .4s}
 #app.ready{opacity:1}
 
 /* ── TOPBAR ── */
@@ -732,7 +732,9 @@ function updatePinDots(error) {
 
 function checkPin() {
   if (pinEntry === getStoredPin()) {
+    // Hide PIN screen
     $('pinScreen').classList.add('hidden');
+    // Start the app
     startApp();
   } else {
     updatePinDots(true);
@@ -740,7 +742,8 @@ function checkPin() {
     setTimeout(() => {
       pinEntry = '';
       updatePinDots(false);
-    }, 800);
+      $('pinErr').textContent = '';
+    }, 900);
   }
 }
 
@@ -1163,19 +1166,24 @@ function exportCSV() {
 // ══════════════════════════════════════════════════
 function startApp() {
   chkOnline();
-  // Load local cache immediately for instant display
+  // Make app visible immediately
+  const appEl = $('app');
+  appEl.style.display = 'flex';
+  // Small delay then fade in
+  requestAnimationFrame(() => {
+    appEl.classList.add('ready');
+  });
+  // Load local cache for instant display
   loadLocalDB();
-  // Then connect Firebase for live sync
+  // Connect Firebase for live sync
   initFirebase();
   renderTabs();
   renderAll();
-  $('app').classList.add('ready');
 
-  // Scroll active tab
-  setTimeout(()=>{
-    const t=document.querySelector('.mtab.active');
-    if(t) t.scrollIntoView({behavior:'instant',block:'nearest',inline:'center'});
-  },100);
+  setTimeout(() => {
+    const t = document.querySelector('.mtab.active');
+    if (t) t.scrollIntoView({ behavior:'instant', block:'nearest', inline:'center' });
+  }, 150);
 }
 
 // ══════════════════════════════════════════════════
@@ -1183,7 +1191,8 @@ function startApp() {
 // ══════════════════════════════════════════════════
 setTimeout(() => {
   $('splash').classList.add('hidden');
-  // Show PIN screen after splash
+  // PIN screen is already visible (it's fixed position, always on top)
+  // Nothing more needed — user types PIN → checkPin() → startApp()
 }, 1800);
 </script>
 </body>
